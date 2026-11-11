@@ -1,0 +1,29 @@
+* { box-sizing: border-box; }
+body { margin: 0; padding: 16px; background: #fff; color: #111; font-family: system-ui, sans-serif; }
+main { max-width: 1400px; margin: 0 auto; }
+svg { display: block; max-width: 100%; outline: 1px solid #ddd; outline-offset: -1px; border-radius: 6px; background: #fff; }
+/* The figure fills the column's width; render() sets its height (the content's, or what the window leaves). */
+#scene { width: 100%; touch-action: none; }
+#scene.is-dragging, #scene.is-dragging .handle { cursor: grabbing; }
+button { min-height: 44px; font: inherit; padding: 8px 18px; margin: 0 0 10px; border: 2px solid #1e3a8a; border-radius: 6px; background: #eef2ff; color: #1e3a8a; cursor: pointer; }
+button:hover:not(:disabled) { background: #c7d2fe; }
+button:active:not(:disabled), button.is-held:not(:disabled) { background: #a5b4fc; }
+button:focus-visible { outline: 3px solid #1e3a8a; outline-offset: 2px; }
+button:disabled { opacity: .5; cursor: default; }
+.handle { cursor: grab; vector-effect: non-scaling-stroke; stroke-opacity: .35; }
+.handle:hover { fill: #e11d4826; stroke-opacity: .9; }
+.handle:active, .handle.is-held { fill: #e11d4859; stroke-opacity: 1; cursor: grabbing; }
+.handle:focus { outline: none; }
+.handle[aria-disabled="true"] { opacity: .5; cursor: default; }
+/* The ring is the visible knob; strokes are in screen px (non-scaling) so a halo stays thick at any size. */
+.handle-ring, .handle-halo { vector-effect: non-scaling-stroke; }
+.handle-ring { stroke-width: 3px; fill: none; transition: fill .1s; }
+.handle:hover + .handle-ring { fill: #fecdd3; stroke-width: 4px; }
+.handle:active + .handle-ring, .handle.is-held + .handle-ring { fill: #fda4af; stroke-width: 5px; }
+.handle-halo { stroke: #1e3a8a; stroke-width: 4px; opacity: 0; }
+/* Focus: a thick dark-blue ring, a white gap and a tinted disc, visible on any background. */
+.handle:focus-visible { fill: #1e3a8a22; stroke: #1e3a8a; stroke-opacity: 1; stroke-width: 3px; }
+.handle:focus-visible + .handle-ring { stroke: #1e3a8a; stroke-width: 6px; }
+.handle:focus-visible + .handle-ring + .handle-halo { opacity: 1; }
+/* Screen-reader-only text: present in the accessibility tree, invisible and out of the layout. */
+.visually-hidden { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; border: 0; }
