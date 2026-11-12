@@ -32,7 +32,7 @@ test('Left and Right at zero update lastAngle without creating a load', () => {
   }
 });
 test('keys affect only the focused handle, prevent scrolling, and restore rebuilt focus', () => {
-  const ui=setup(); ui.handle('Q').focus();
+  const ui=setup({search:'?P=1,-90'}); ui.handle('Q').focus(); // P opens at 0 in frame 1
   assert.equal(key(ui,'P','ArrowUp').defaultPrevented,undefined);
   assert.equal(key(ui,'Q','ArrowUp').defaultPrevented,true);
   near(ui.app.state.loads.Q.y,-1); assert.deepEqual(ui.app.state.loads.P,{x:0,y:-1});
@@ -45,7 +45,7 @@ test('keys affect only the focused handle, prevent scrolling, and restore rebuil
 });
 
 test('aria-valuenow follows keyboard steps and the cap', () => {
-  const ui=setup(); ui.handle('P').focus();
+  const ui=setup({search:'?P=1,-90'}); ui.handle('P').focus(); // P opens at 0 in frame 1
   assert.equal(ui.handle('P').getAttribute('aria-valuenow'),'100');
   key(ui,'P','ArrowUp');
   assert.equal(ui.handle('P').getAttribute('aria-valuenow'),'100');   // already at the cap

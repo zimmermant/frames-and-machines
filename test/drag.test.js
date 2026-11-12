@@ -52,7 +52,7 @@ test('a press without movement changes nothing, even away from the handle centre
 });
 test('capture uses pointerId and held/dragging survive redraw, then clear on every exit', () => {
   for(const exit of ['pointerup','pointercancel','lostpointercapture']) {
-    const ui=setup(), tail=loadHandlePos(FIG1,ui.app.state,'P',0);
+    const ui=setup({search:'?P=1,-90'}), tail=loadHandlePos(FIG1,ui.app.state,'P',0); // P opens at 0 in frame 1
     pointer(ui,'pointerdown',tail);
     assert.equal(ui.svg.capturedPointer,7); assert.ok(ui.handle().classList.contains('is-held'));
     assert.ok(ui.svg.classList.contains('is-dragging'));

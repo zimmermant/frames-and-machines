@@ -114,7 +114,7 @@ test('handle follows member offset during an active drag with a stationary point
   // Vertical offsets keep this fixture exactly on a snap ray, so its tail
   // must stay exactly under the pointer rather than just within snap error.
   const fig=structuredClone(FIG1); fig.view.explode.AC={dx:0,dy:0.2};
-  let calls=0; const ui=setup({solve:(f,l)=>{calls++;return solve(f,l);}},fig);
+  let calls=0; const ui=setup({search:'?P=1,-90',solve:(f,l)=>{calls++;return solve(f,l);}},fig); // P opens at 0 in frame 1
   const start=loadHandlePos(fig,ui.app.state,'P',0), point={x:start.x,y:start.y-0.1};
   pointer(ui,'pointerdown',start); pointer(ui,'pointermove',point);
   ui.button.fire('click'); ui.tick(250);

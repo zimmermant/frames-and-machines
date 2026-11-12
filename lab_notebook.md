@@ -25,6 +25,34 @@ Newest entry first.
 - Todd's look-list (unchanged; see the entry below).
 - Republish only by the guarded update method: clone, rsync, deletion guard, add a commit, never rewrite.
 
+## 2026-11-12 (evening) — Frame 1 opens with P at zero
+
+**Summary**
+- Todd: "For frame 1, set the default value of P to zero." A load can now carry `start` (frame 1 P: `{x:0,y:0}`); `initialState` uses it, so P opens at zero with no URL value or an unreadable one. Q is unchanged.
+- P's `nominal` (1, down) still sets the cap, the URL fraction scale, the keyboard step and the remembered direction, so `?P=1,-90` gives the full textbook load and Up from zero resumes downward.
+- 156 tests pass; new mutation row "a load ignores its opening value" caught by 3 tests; harness page 1 at 375/800/1280: 0 violations. README updated (Frame 1 line, opening values, "textbook" instead of "starting" load).
+
+**Decisions**
+- **Lead (stated to Todd):** "default" means the opening value only; the textbook size still defines the largest load and the URL fraction.
+- Six mechanics tests that assumed P opens at its textbook value now open with `?P=1,-90` so they still test drag, pointer capture and keyboard behaviour; the two URL tests now expect P = 0.
+
+**Problems**
+- Running `node tools/mutations.mjs --help` started a full mutation run (it has no help flag); it was cut off by the pipe and left the files restored (checked with `git status`).
+
+**Open / next**
+- Merge to `main` and republish need Todd's OK.
+
+## 2026-11-12 (later) — merged and republished
+
+**Summary**
+- Todd approved both ("merge into main and republish to github pages"). `sim/url-arrows-letters` merged into `main` with `--no-ff` (dc92ff2); 155 tests pass on main.
+- Republished by clone + `rsync --delete` + deletion guard (no deletions; 29 files changed). Public commit f093812 on `zimmermant/frames-and-machines`, a fast-forward with no force push.
+- Live checks: all seven dist pages are byte-identical to local, and the root returns 200. Headless Edge on the live `frame-6.html?P=0.5,-90&view=exploded` gave the title "Frame 6 — frames and machines", button "Combine", explode fraction 1, P = (0, −6) and 9 point letters, with the screenshot as expected.
+
+**Open / next**
+- This entry reaches the public repo with the next republish.
+- See the entry below for the remaining look-list.
+
 ## 2026-11-12 — URL loads, 1× cap with longer arrows, less whitespace, point letters
 
 **Summary**

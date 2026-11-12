@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { snapLoad, ease } from '../src/state.js';
+import { snapLoad, ease, initialState, presetFromQuery } from '../src/state.js';
+import { stepLoad } from '../src/kbd.js';
 import * as state from '../src/state.js';
 import { FIG1 } from '../src/figures/fig1.js';
 import { FIG3 } from '../src/figures/fig3.js';
@@ -65,7 +66,7 @@ test('URL unreadable loads and lowercase names keep textbook values', () => {
 });
 test('URL sets frame 1 loads independently', () => {
   const preset=state.presetFromQuery(FIG1,'?Q=0.5,180');
-  assert.deepEqual(preset.loads,{P:{x:0,y:-1},Q:{x:-0.5,y:0}});
+  assert.deepEqual(preset.loads,{P:{x:0,y:0},Q:{x:-0.5,y:0}}); // frame 1 P opens at 0 (Todd 2026-11-12)
   assert.equal(preset.lastAngle.P,-Math.PI/2);
   assert.equal(preset.lastAngle.Q,Math.PI);
   assert.deepEqual(state.presetFromQuery(FIG1,'?P=0.5,0&Q=0.5,180').loads,
@@ -86,5 +87,19 @@ test('URL presets do not mutate figure data or share mutable state', () => {
   preset.lastAngle.P=99;
   assert.deepEqual(FIG1,before);
   assert.deepEqual(state.presetFromQuery(FIG1,'?Q=0.5,180').loads,
-    {P:{x:0,y:-1},Q:{x:-0.5,y:0}});
+    {P:{x:0,y:0},Q:{x:-0.5,y:0}});
+});
+
+// Todd 2026-11-12: frame 1 opens with P = 0 (Q stays at its textbook value). P's nominal still sets the cap, the URL
+// fraction scale and the keyboard step, and its remembered direction stays the textbook one (down), so Up resumes downward.
+test('frame 1 opens with P at zero unless the URL sets it', () => {
+  const s=initialState(FIG1);
+  assert.deepEqual(s.loads.P,{x:0,y:0});
+  assert.deepEqual(s.loads.Q,{x:0,y:-1});
+  assert.equal(s.lastAngle.P,-Math.PI/2);
+  assert.deepEqual(presetFromQuery(FIG1,'').loads.P,{x:0,y:0});
+  assert.deepEqual(presetFromQuery(FIG1,'?Q=0.5,180').loads.P,{x:0,y:0});
+  assert.deepEqual(presetFromQuery(FIG1,'?P=abc').loads.P,{x:0,y:0});
+  assert.deepEqual(presetFromQuery(FIG1,'?P=1,-90').loads.P,{x:0,y:-1});
+  assert.deepEqual(stepLoad(s.loads.P,1,'ArrowUp',s.lastAngle.P).vec,{x:0,y:-0.05});
 });

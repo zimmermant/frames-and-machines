@@ -4,7 +4,8 @@ export const LOAD_CAP=1;
 // the application owns transient gestures, animation progress and its solve cache.
 export function initialState(fig) {
   return {
-    loads:Object.fromEntries(fig.loads.map(load=>[load.name,{...load.nominal}])),
+    // A load opens at `start` when the figure gives one (frame 1 P: zero, Todd 2026-11-12), else at its textbook value.
+    loads:Object.fromEntries(fig.loads.map(load=>[load.name,{...(load.start ?? load.nominal)}])),
     lastAngle:Object.fromEntries(fig.loads.map(load=>[load.name,Math.atan2(load.nominal.y,load.nominal.x)])),
     explodeTarget:0
   };

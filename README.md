@@ -6,7 +6,7 @@ Six interactive statics simulations show how applied loads change support reacti
 
 Open [the index](dist/index.html) to choose a frame:
 
-- [Frame 1](dist/frame-1.html): two pinned members with independently adjustable loads P and Q.
+- [Frame 1](dist/frame-1.html): two pinned members with independently adjustable loads P and Q (P opens at zero).
 - [Frame 2](dist/frame-2.html): a three-member frame with a wall roller.
 - [Frame 3](dist/frame-3.html): a curved member and a straight link.
 - [Frame 4](dist/frame-4.html): two arms with ball contacts C and D.
@@ -41,10 +41,10 @@ Select **Explode** to separate the members into individual free-body diagrams an
 Use **Tab** to focus a load handle, then:
 
 - **Left / Right:** rotate the load counterclockwise / clockwise by 5°.
-- **Up / Down:** increase / decrease its magnitude by 5% of the starting load.
+- **Up / Down:** increase / decrease its magnitude by 5% of its textbook load.
 - With the **Explode / Combine** button focused, press **Enter** or **Space** to activate it.
 
-Loads are capped at their starting (textbook) magnitude: a load can be made smaller or turned, never larger. Drag directions snap to 5° increments, and dragging below 8% of the starting magnitude snaps the load to zero. The keyboard can reach small loads that a drag snaps to zero: **Up** from zero produces a 5% load. Left and Right at zero change the direction that Up will resume. A zero load retains its handle, so it remains draggable and keyboard accessible.
+Every page opens at the textbook loads, except Frame 1, whose P opens at zero (Q is at its textbook value). Loads are capped at their textbook magnitude: a load can be made smaller or turned, never larger. Drag directions snap to 5° increments, and dragging below 8% of the textbook magnitude snaps the load to zero. The keyboard can reach small loads that a drag snaps to zero: **Up** from zero produces a 5% load. Left and Right at zero change the direction that Up will resume. A zero load retains its handle, so it remains draggable and keyboard accessible.
 
 ## Lift-off
 
@@ -93,7 +93,7 @@ Each load takes **a fraction of its textbook value (0 to 1), a comma, then a dir
 | Frame 5 | P | [`frame-5.html?P=1,-90`](dist/frame-5.html?P=1,-90) |
 | Frame 6 | P | [`frame-6.html?P=0.5,-90&view=exploded`](dist/frame-6.html?P=0.5,-90&view=exploded) |
 
-- A load not named in the URL takes its textbook value. A value that cannot be read (`P=abc`, `P=0.5` with no direction) is ignored, so that load also takes its textbook value. Names are case-sensitive (`P`, not `p`).
+- A load not named in the URL takes its opening value: the textbook value, except Frame 1's P, which opens at zero. A value that cannot be read (`P=abc`, `P=0.5` with no direction) is ignored, so that load also takes its opening value. Names are case-sensitive (`P`, not `p`).
 - Fractions are clamped to 0–1 and directions snapped to 5°, exactly as a drag would; a fraction below 0.08 gives a zero load.
 - Frame 4 is a good place to show lift-off: `frame-4.html?P=0.5,90` lifts both balls.
 - Students can still drag the loads after the page opens.

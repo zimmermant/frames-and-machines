@@ -11,7 +11,7 @@ export const FIG1 = {
   ],
   joints: [{ name:'C', at:'C', members:['AC','CB'], kind:'pin' }],
   loads: [
-    { name:'P', at:{x:0.466*9.65,y:0.466*7.8}, member:'AC', nominal:{x:0,y:-1} },
+    { name:'P', at:{x:0.466*9.65,y:0.466*7.8}, member:'AC', nominal:{x:0,y:-1}, start:{x:0,y:0} }, // opens at zero (Todd 2026-11-12); nominal still sets the cap
     { name:'Q', at:{x:9.65+0.62*(12.4-9.65),y:7.8*(1-0.62)}, member:'CB', nominal:{x:0,y:-1} }
   ],
   balls: [],

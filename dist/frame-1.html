@@ -1068,7 +1068,8 @@ const LOAD_CAP=1;
 // the application owns transient gestures, animation progress and its solve cache.
 function initialState(fig) {
   return {
-    loads:Object.fromEntries(fig.loads.map(load=>[load.name,{...load.nominal}])),
+    // A load opens at `start` when the figure gives one (frame 1 P: zero, Todd 2026-11-12), else at its textbook value.
+    loads:Object.fromEntries(fig.loads.map(load=>[load.name,{...(load.start ?? load.nominal)}])),
     lastAngle:Object.fromEntries(fig.loads.map(load=>[load.name,Math.atan2(load.nominal.y,load.nominal.x)])),
     explodeTarget:0
   };
@@ -1225,7 +1226,7 @@ const FIG1 = {
   ],
   joints: [{ name:'C', at:'C', members:['AC','CB'], kind:'pin' }],
   loads: [
-    { name:'P', at:{x:0.466*9.65,y:0.466*7.8}, member:'AC', nominal:{x:0,y:-1} },
+    { name:'P', at:{x:0.466*9.65,y:0.466*7.8}, member:'AC', nominal:{x:0,y:-1}, start:{x:0,y:0} }, // opens at zero (Todd 2026-11-12); nominal still sets the cap
     { name:'Q', at:{x:9.65+0.62*(12.4-9.65),y:7.8*(1-0.62)}, member:'CB', nominal:{x:0,y:-1} }
   ],
   balls: [],

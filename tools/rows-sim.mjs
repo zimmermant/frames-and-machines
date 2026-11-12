@@ -21,6 +21,8 @@ export const SIM_ROWS = [
   ['solve.js', 'clean preserves negative zero',
     'Math.abs(value)<1e-12 ? 0 : value', 'Math.abs(value)<1e-12 ? (Object.is(value,-0) ? -0 : 0) : value'],
 
+  ['state.js', 'a load ignores its opening value and opens at its textbook value (frame 1 P)',
+    '{...(load.start ?? load.nominal)}', '{...load.nominal}'],
   // Pointer snapping and keyboard stepping have deliberately different zero rules.
   ['state.js', 'drag zero snap starts at five percent instead of eight percent',
     'magnitude<0.08*nominal', 'magnitude<0.05*nominal'],
