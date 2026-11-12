@@ -19,6 +19,8 @@ Each frame is a self-contained HTML file and can also be opened or shared on its
 
 Drag the circle at a load's **tail** to change its size and direction. The arrowhead stays at the point where the force acts. Loads are red (P) and support reactions blue. All arrows on a page use the same length scale.
 
+Each lettered point of the textbook figure (A, B, C …) is labelled in dark grey. In the exploded view a point shared by two members, such as a pin, shows its letter beside each member.
+
 ### Notation
 
 Every force is **F with a subscript**, never a bare joint letter. x is right and y is up, and every arrow points in its true direction.
@@ -42,7 +44,7 @@ Use **Tab** to focus a load handle, then:
 - **Up / Down:** increase / decrease its magnitude by 5% of the starting load.
 - With the **Explode / Combine** button focused, press **Enter** or **Space** to activate it.
 
-Loads are capped at 1.5 times their starting magnitude. Drag directions snap to 5° increments, and dragging below 8% of the starting magnitude snaps the load to zero. The keyboard can reach small loads that a drag snaps to zero: **Up** from zero produces a 5% load. Left and Right at zero change the direction that Up will resume. A zero load retains its handle, so it remains draggable and keyboard accessible.
+Loads are capped at their starting (textbook) magnitude: a load can be made smaller or turned, never larger. Drag directions snap to 5° increments, and dragging below 8% of the starting magnitude snaps the load to zero. The keyboard can reach small loads that a drag snaps to zero: **Up** from zero produces a 5% load. Left and Right at zero change the direction that Up will resume. A zero load retains its handle, so it remains draggable and keyboard accessible.
 
 ## Lift-off
 
@@ -71,6 +73,30 @@ node tools/run-harness.mjs --shots screenshots
 ```
 
 The harness rebuilds automatically and checks load sweeps in combined and exploded views at phone, tablet and desktop sizes. It reports overlaps, arrow bounds, text and handle sizes, page budgets, and whether deliberately planted faults are detected. Add `--no-build` to check an existing build.
+
+## Setting the loads from the URL
+
+A link can open a page with chosen loads, for example on a lecture slide:
+
+```
+frame-6.html?P=0.5,-90
+```
+
+Each load takes **a fraction of its textbook value (0 to 1), a comma, then a direction in degrees** counterclockwise from +x (0 is right, 90 up, −90 down, 180 left). Add `view=exploded` to open the page already exploded.
+
+| Page | Loads | Example |
+|---|---|---|
+| Frame 1 | P, Q | [`frame-1.html?P=1,-90&Q=0.5,180`](dist/frame-1.html?P=1,-90&Q=0.5,180) |
+| Frame 2 | P | [`frame-2.html?P=0.75,-45`](dist/frame-2.html?P=0.75,-45) |
+| Frame 3 | P | [`frame-3.html?P=1,180&view=exploded`](dist/frame-3.html?P=1,180&view=exploded) |
+| Frame 4 | P | [`frame-4.html?P=0.5,-45`](dist/frame-4.html?P=0.5,-45) |
+| Frame 5 | P | [`frame-5.html?P=1,-90`](dist/frame-5.html?P=1,-90) |
+| Frame 6 | P | [`frame-6.html?P=0.5,-90&view=exploded`](dist/frame-6.html?P=0.5,-90&view=exploded) |
+
+- A load not named in the URL takes its textbook value. A value that cannot be read (`P=abc`, `P=0.5` with no direction) is ignored, so that load also takes its textbook value. Names are case-sensitive (`P`, not `p`).
+- Fractions are clamped to 0–1 and directions snapped to 5°, exactly as a drag would; a fraction below 0.08 gives a zero load.
+- Frame 4 is a good place to show lift-off: `frame-4.html?P=0.5,90` lifts both balls.
+- Students can still drag the loads after the page opens.
 
 ## Embedding
 

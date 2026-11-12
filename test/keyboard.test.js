@@ -8,7 +8,7 @@ test('arrow keys rotate ±5° and change magnitude by 5 % nominal, clamped', () 
     const result=stepLoad({x:10,y:0},10,k,0);
     near(Math.atan2(result.vec.y,result.vec.x),angle); near(Math.hypot(result.vec.x,result.vec.y),10);
   }
-  for (const [x,k,want] of [[10,'ArrowUp',10.5],[10,'ArrowDown',9.5],[15,'ArrowUp',15],[14.8,'ArrowUp',15],[0,'ArrowDown',0],[0,'ArrowUp',0.5],[0.5,'ArrowDown',0]]) {
+  for (const [x,k,want] of [[10,'ArrowUp',10],[9,'ArrowUp',9.5],[10,'ArrowDown',9.5],[9.8,'ArrowUp',10],[0,'ArrowDown',0],[0,'ArrowUp',0.5],[0.5,'ArrowDown',0]]) {
     near(stepLoad({x,y:0},10,k,0).vec.x,want);
   }
 });
@@ -35,10 +35,11 @@ test('keys affect only the focused handle, prevent scrolling, and restore rebuil
   const ui=setup(); ui.handle('Q').focus();
   assert.equal(key(ui,'P','ArrowUp').defaultPrevented,undefined);
   assert.equal(key(ui,'Q','ArrowUp').defaultPrevented,true);
-  near(ui.app.state.loads.Q.y,-1.05); assert.deepEqual(ui.app.state.loads.P,{x:0,y:-1});
+  near(ui.app.state.loads.Q.y,-1); assert.deepEqual(ui.app.state.loads.P,{x:0,y:-1});
   assert.equal(document.activeElement,ui.handle('Q'));
   assert.equal(key(ui,'Q','ArrowDown').defaultPrevented,true);
-  near(ui.app.state.loads.Q.y,-1);
+  near(ui.app.state.loads.Q.y,-0.95);
+  key(ui,'Q','ArrowUp'); near(ui.app.state.loads.Q.y,-1);
   ui.button.focus();
   assert.equal(key(ui,'Q','ArrowUp',ui.button).defaultPrevented,undefined);
 });
@@ -47,9 +48,9 @@ test('aria-valuenow follows keyboard steps and the cap', () => {
   const ui=setup(); ui.handle('P').focus();
   assert.equal(ui.handle('P').getAttribute('aria-valuenow'),'100');
   key(ui,'P','ArrowUp');
-  assert.equal(ui.handle('P').getAttribute('aria-valuenow'),'105');
+  assert.equal(ui.handle('P').getAttribute('aria-valuenow'),'100');   // already at the cap
   key(ui,'P','ArrowDown'); key(ui,'P','ArrowDown');
-  assert.equal(ui.handle('P').getAttribute('aria-valuenow'),'95');
+  assert.equal(ui.handle('P').getAttribute('aria-valuenow'),'90');
   for (let i=0;i<20;i++) key(ui,'P','ArrowUp');
-  assert.equal(ui.handle('P').getAttribute('aria-valuenow'),'150');
+  assert.equal(ui.handle('P').getAttribute('aria-valuenow'),'100');
 });

@@ -1,6 +1,6 @@
 import { render, liftOffText } from './scene.js';
 import { solve } from './solve.js';
-import { initialState, ease } from './state.js';
+import { presetFromQuery, ease } from './state.js';
 import { wireDrag, updateDrag } from './drag.js';
 import { wireKeys } from './kbd.js';
 
@@ -13,7 +13,8 @@ export function createApp(root, fig, options = {}) {
   const now=options.now || (()=>globalThis.performance.now());
   const reducedMotion=options.reducedMotion || (()=>globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches===true);
   const solveLoads=options.solve || solve;
-  const app={fig,svg,button,state:initialState(fig),frac:0,drag:null,solution:null};
+  const state=presetFromQuery(fig,options.search ?? globalThis.location?.search ?? '');
+  const app={fig,svg,button,state,frac:state.explodeTarget,drag:null,solution:null};
   let frame=null;
 
   app.setLoad=(name,result)=>{

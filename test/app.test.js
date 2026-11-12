@@ -1,11 +1,80 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { setup, pointer, near } from './interaction-helpers.js';
+import { setup, pointer, key, near } from './interaction-helpers.js';
 import { solve } from '../src/solve.js';
 import { FIG1 } from '../src/figures/fig1.js';
 import { FIG4 } from '../src/figures/fig4.js';
 import { FIG2 } from '../src/figures/fig2.js';
+import { FIG6 } from '../src/figures/fig6.js';
 import { loadHandlePos } from '../src/scene.js';
+
+test('URL zero load opens fully exploded and ArrowUp uses its supplied direction', () => {
+  const ui=setup({search:'?P=0,90&view=exploded'},FIG6);
+  assert.equal(ui.app.frac,1);
+  assert.equal(ui.button.textContent,'Combine');
+  assert.equal(ui.button.getAttribute('aria-pressed'),'true');
+  assert.equal(ui.frames.size,0);
+  assert.deepEqual(ui.app.state.loads.P,{x:0,y:0});
+  near(+ui.handle().getAttribute('cx'),2.1);
+  near(+ui.handle().getAttribute('cy'),-0.6);
+  assert.equal(ui.svg.querySelector('.member').getAttribute('transform'),'translate(-1.1 0)');
+  ui.handle().focus();
+  assert.equal(key(ui,'P','ArrowUp').defaultPrevented,true);
+  assert.equal(ui.app.state.loads.P.x,0);
+  near(ui.app.state.loads.P.y,0.6);
+  assert.equal(ui.app.frac,1);
+  assert.equal(ui.frames.size,0);
+});
+
+test('URL exploded preset supports immediate drag in member coordinates with a fixed viewBox', () => {
+  const ui=setup({search:'?P=0.5,-90&view=exploded'},FIG1);
+  const viewBox=ui.svg.getAttribute('viewBox');
+  const load=FIG1.loads[0], offset=FIG1.view.explode.AC;
+  const at={x:load.at.x+offset.dx,y:load.at.y+offset.dy};
+  const tail={x:at.x,y:at.y+0.5*FIG1.view.arrowPerForce};
+  near(+ui.handle().getAttribute('cx'),tail.x);
+  near(-ui.handle().getAttribute('cy'),tail.y);
+  pointer(ui,'pointerdown',tail);
+  assert.equal(ui.app.frac,1);
+  assert.equal(ui.button.textContent,'Combine');
+  const moved={x:at.x-0.5*FIG1.view.arrowPerForce,y:at.y};
+  pointer(ui,'pointermove',moved);
+  near(ui.app.state.loads.P.x,0.5);
+  assert.equal(ui.app.state.loads.P.y,0);
+  near(+ui.handle().getAttribute('cx'),moved.x);
+  near(-ui.handle().getAttribute('cy'),moved.y);
+  assert.deepEqual(ui.app.solution,solve(FIG1,ui.app.state.loads));
+  pointer(ui,'pointerup',moved);
+  assert.equal(ui.app.frac,1);
+  assert.equal(ui.frames.size,0);
+  assert.equal(ui.svg.getAttribute('viewBox'),viewBox);
+  ui.button.fire('click');
+  ui.tick(500);
+  assert.equal(ui.app.frac,0);
+  assert.equal(ui.button.textContent,'Explode');
+  assert.equal(ui.svg.getAttribute('viewBox'),viewBox);
+});
+
+test('app defaults to the browser query and an explicit search overrides it', () => {
+  const descriptor=Object.getOwnPropertyDescriptor(globalThis,'location');
+  Object.defineProperty(globalThis,'location',{
+    configurable:true,value:{search:'?P=0.5,-90&view=exploded'}
+  });
+  try {
+    const fromLocation=setup({},FIG6);
+    assert.deepEqual(fromLocation.app.state.loads.P,{x:0,y:-6});
+    assert.equal(fromLocation.app.frac,1);
+    const overridden=setup({search:'?P=0.5,0'},FIG6);
+    assert.deepEqual(overridden.app.state.loads.P,{x:6,y:0});
+    assert.equal(overridden.app.frac,0);
+    const empty=setup({search:''},FIG6);
+    assert.deepEqual(empty.app.state.loads.P,{x:0,y:-12});
+    assert.equal(empty.app.frac,0);
+  } finally {
+    if (descriptor) Object.defineProperty(globalThis,'location',descriptor);
+    else delete globalThis.location;
+  }
+});
 
 test('button label toggles Explode ↔ Combine and has aria-pressed', () => {
   const ui=setup();
@@ -46,7 +115,7 @@ test('handle follows member offset during an active drag with a stationary point
   // must stay exactly under the pointer rather than just within snap error.
   const fig=structuredClone(FIG1); fig.view.explode.AC={dx:0,dy:0.2};
   let calls=0; const ui=setup({solve:(f,l)=>{calls++;return solve(f,l);}},fig);
-  const start=loadHandlePos(fig,ui.app.state,'P',0), point={x:start.x,y:start.y+0.1};
+  const start=loadHandlePos(fig,ui.app.state,'P',0), point={x:start.x,y:start.y-0.1};
   pointer(ui,'pointerdown',start); pointer(ui,'pointermove',point);
   ui.button.fire('click'); ui.tick(250);
   near(+ui.handle().getAttribute('cx'),point.x); near(-ui.handle().getAttribute('cy'),point.y);
@@ -73,7 +142,7 @@ test('loads re-solve immediately during animation while unchanged loads reuse th
   ui.button.fire('click'); ui.tick(250);
   const tail=loadHandlePos(FIG1,ui.app.state,'P',ui.app.frac);
   pointer(ui,'pointerdown',tail);
-  const point={x:tail.x,y:tail.y+0.2};
+  const point={x:tail.x,y:tail.y-0.2};
   pointer(ui,'pointermove',point);
   assert.equal(calls,2);
   assert.deepEqual(ui.app.solution,solve(FIG1,ui.app.state.loads));

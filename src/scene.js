@@ -13,6 +13,13 @@ export const HANDLE_PX=23;
 export const RING_PX=10;
 // The focus halo drawn round a focused handle; labels keep clear of all of it.
 export const HALO_PX=RING_PX+7;
+// A point letter's box in em, and its clearance from the point in px (the pin dot is 5.8 px; the placer then moves it past the member's edge).
+const LETTER_EM=[0.85,1.2];
+const LETTER_GAP_PX=6;
+const LETTER_NEAR_PX=13; // beyond its member's edge
+const FAR_LETTER=3;      // score of a far letter: it outweighs a far force label or two
+const LETTER_PAD_PX=1.5; // slack round the glyph box, so the measured text never touches what the placer cleared
+const LETTER_BIAS_PX=3; // px of extra distance for a letter's side facing back toward its member, so it prefers the side away from it
 
 export function memberOffset(fig, memberId, frac) {
   const offset=fig.view.explode[memberId] || {dx:0,dy:0};
@@ -223,6 +230,30 @@ export function liftOffText(fig, sol) {
   return spokenText(liftOffSegs(fig,sol));
 }
 
+// ---- point letters ------------------------------------------------------------------------------------------------------
+// Every key of fig.points that is one capital letter is a lettered point (helper points such as upperBend are not).
+export const isLetterPoint=name=>/^[A-Z]$/.test(name);
+
+// The members that carry a point, in the order joints, supports, loads (named by the point or located at it), then, only if
+// none of those, any member whose path starts or ends there. [] when no member carries it.
+export function pointCarriers(fig, name) {
+  const p=resolvePoint(fig,name), same=at=>typeof at==='string' ? at===name : at.x===p.x && at.y===p.y;
+  const ids=[...fig.joints.filter(j=>j.name===name || same(j.at)).flatMap(j=>j.members),
+    ...fig.supports.filter(s=>s.name===name || same(s.at)).map(s=>s.member),
+    ...fig.loads.filter(l=>same(l.at)).map(l=>l.member)];
+  if (!ids.length) for (const m of fig.members) {
+    if (m.path.some(s=>s.from===name || s.to===name)) ids.push(m.id);
+  }
+  return [...new Set(ids)];
+}
+
+// Where a member's copy of a point is drawn (figure units, y up, before the explode offset). A ball touches its members at
+// the joint's drawAt, so its letter goes there; everything else is lettered at the point itself.
+export function pointAnchor(fig, name, member) {
+  const contact=[...fig.joints,...fig.supports].find(c=>c.name===name && c.drawAt?.[member] && fig.balls.some(b=>b.name===name));
+  return resolvePoint(fig,contact ? contact.drawAt[member] : name);
+}
+
 function loadDirectionText(vec) {
   if (vec.x===0 && vec.y===0) return 'zero';
   const vertical=vec.y>0 ? 'up' : vec.y<0 ? 'down' : '';
@@ -335,9 +366,43 @@ export function render(svgEl, fig, state, sol, frac) {
   const requests=drawn.map(({force,tail,head,zero})=>({force,tail,head,zero,
     away:{x:tail.x-head.x,y:tail.y-head.y},len:Math.hypot(head.x-tail.x,head.y-tail.y),
     ball:zero ? null : ballCircles.find(b=>b.name===force.name && Math.hypot(tail.x-b.c.x,tail.y-b.c.y)<b.r)}));
-  const attempt=order=>{
+  // Point letters: one per carrying member (a split pin shows its letter beside each half); the copies after the first fade in
+  // with the explode fraction, like pin forces, and are not drawn at all when combined.
+  const letters=[];
+  for (const name of Object.keys(fig.points).filter(isLetterPoint)) {
+    const carriers=pointCarriers(fig,name), copies=carriers.length ? carriers : [null];
+    const centroid=id=>{
+      const m=fig.members.find(q=>q.id===id), o=memberOffset(fig,id,frac), pts=m.path.flatMap(segment=>segment.seg==='arc' ?
+        sampleArc(fig,segment,16) : [resolvePoint(fig,segment.from),resolvePoint(fig,segment.to)]);
+      return toSvg({x:pts.reduce((n,q)=>n+q.x,0)/pts.length+o.dx,y:pts.reduce((n,q)=>n+q.y,0)/pts.length+o.dy});
+    };
+    copies.forEach((member,i)=>{
+      if (i>0 && frac===0) return;
+      const o=member ? memberOffset(fig,member,frac) : {dx:0,dy:0}, p=pointAnchor(fig,name,member);
+      const at=toSvg({x:p.x+o.dx,y:p.y+o.dy});
+      // aim away from the member it belongs to (combined: away from all the members that meet there)
+      const from=(frac===0 ? copies : [member]).filter(Boolean).map(centroid);
+      const mid=from.length ? {x:from.reduce((n,q)=>n+q.x,0)/from.length,y:from.reduce((n,q)=>n+q.y,0)/from.length} : at;
+      letters.push({name,member,first:i===0,at,away:{x:at.x-mid.x,y:at.y-mid.y},bar:member ? fig.members.find(q=>q.id===member).width/2 : 0});
+    });
+  }
+  const attempt=(order,lettersFirst=false,reverse=false)=>{
     const place=createLabelPlacer({x,y,w,h},obstacles), result=new Array(requests.length);
     let score=0;
+    // Letters: each clear of everything placed so far and as near its point as the room allows. A letter more than LETTER_NEAR_PX
+    // beyond its member's edge counts as far, like a force label far from its arrow.
+    const placeLetters=()=>{
+      const boxes=new Array(letters.length);
+      for (const j of reverse ? letters.map((_,k)=>letters.length-1-k) : letters.map((_,k)=>k)) {
+        const {at,away,bar}=letters[j];
+        const box=place(at,away,size*LETTER_EM[0]+2*LETTER_PAD_PX/px,size*LETTER_EM[1]+2*LETTER_PAD_PX/px,LETTER_GAP_PX/px,null,undefined,
+          {exact:true,bias:LETTER_BIAS_PX/px});
+        score+=box.cost-bar>LETTER_NEAR_PX/px ? FAR_LETTER+Math.min(box.cost,1e3)/1e4 : 0;
+        boxes[j]=box;
+      }
+      return boxes;
+    };
+    const early=lettersFirst ? placeLetters() : null;
     for (const i of order) {
       const {force,tail,head,zero,away,ball}=requests[i];
       const [wide,tall]=labelEm(force);
@@ -346,7 +411,7 @@ export function render(svgEl, fig, state, sol, frac) {
         place(tail,away,size*wide,size*tall,(force.kind==='load'?HALO_PX+1.5:6)/px,zero ? null : head,6/px);
       result[i]=box; score+=box.cost>nearPx ? 1+Math.min(box.cost,1e3)/1e4 : 0;
     }
-    return {result,score};
+    return {result,letterBoxes:early ?? placeLetters(),score};
   };
   const indices=requests.map((_,i)=>i);
   const orders=[indices,[...indices].reverse(),[...indices].sort((a,b)=>requests[a].len-requests[b].len),
@@ -361,6 +426,14 @@ export function render(svgEl, fig, state, sol, frac) {
     if (!best || tried.score<best.score) best=tried;
     if (best.score===0) break;
   }
+  // Fallback, taken only when a letter ended far from its point (a crowded point whose room the force labels took): retry with the
+  // letters placed before the force labels, forward then reversed. Most renders never get here.
+  if (best.score>=FAR_LETTER) retry: for (const reverse of [false,true]) for (const order of orders) {
+    const tried=attempt(order,true,reverse);
+    if (tried.score<best.score) best=tried;
+    if (best.score<FAR_LETTER) break retry;
+  }
+  const letterBoxes=best.letterBoxes;
   const pendingLabels=requests.map(({force},i)=>({force,box:best.result[i],colour:drawn[i].colour}));
   // Labels are a final overlay: even the last force's arrow paints below every
   // label. Preserve their original slot calculation, identity and pin fade.
@@ -371,6 +444,11 @@ export function render(svgEl, fig, state, sol, frac) {
     // Centred in its box, so the text sits as near the arrow as the box does.
     label(group,box.x+box.w/2,box.y+(force.role==='load'?0.905:0.935)*size,forceSegs(force),{size,fill:colour,anchor:'middle'});
   }
+  letters.forEach(({name,member,first},i)=>{
+    const box=letterBoxes[i];
+    const group=el('g',{class:'point-label','data-point':name,'data-member':member,opacity:first ? 1 : frac},labels);
+    label(group,box.x+box.w/2,box.y+LETTER_PAD_PX/px+0.905*size,[{t:name}],{size,fill:PALETTE.letter,anchor:'middle',plain:true});
+  });
   label(labels,x+12/px,y+h-12/px,liftOffSegs(fig,sol),{id:'liftoff',size:16/px,plain:true});
   const handles=el('g',{class:'g handles'},svgEl);
   for (const load of fig.loads) {

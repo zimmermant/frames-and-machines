@@ -106,14 +106,14 @@ try {
     // Real pointer drag, combined and exploded.
     await setFrac(0); const d0 = await drag(-40, 30); await setFrac(1); const d1 = await drag(30, -40);
     dragOk = d0 && d1;
-    rows.push({ page, vp: `${vp.width}x${vp.height}`, violations: r.violationCount, flagged: r.sensitivity.flagged, budget: r.budget.ok, states: r.counts.states, labels: r.counts.labels, arrows: r.counts.arrows, liftOff: r.counts.liftOffStates, nonVac: r.nonVacuity.ok, drag: dragOk, secs: ((Date.now() - t0) / 1000).toFixed(0) });
+    rows.push({ page, vp: `${vp.width}x${vp.height}`, violations: r.violationCount, flagged: r.sensitivity.flagged, budget: r.budget.ok, states: r.counts.states, labels: r.counts.labels, letters: r.counts.letters, arrows: r.counts.arrows, liftOff: r.counts.liftOffStates, nonVac: r.nonVacuity.ok, drag: dragOk, secs: ((Date.now() - t0) / 1000).toFixed(0) });
     details.push({ page, vp, r });
   }
 } finally { cleanup(); }
 
 const pad = (s, n) => String(s).padEnd(n);
-console.log(`${pad('page', 5)}${pad('viewport', 10)}${pad('violations', 11)}${pad('flagged', 8)}${pad('budget', 7)}${pad('states', 8)}${pad('labels', 8)}${pad('arrows', 8)}${pad('liftOff', 8)}${pad('nonVac', 7)}${pad('drag', 6)}secs`);
-for (const x of rows) console.log(`${pad(x.page, 5)}${pad(x.vp, 10)}${pad(x.violations, 11)}${pad(x.flagged, 8)}${pad(x.budget, 7)}${pad(x.states, 8)}${pad(x.labels, 8)}${pad(x.arrows, 8)}${pad(x.liftOff, 8)}${pad(x.nonVac, 7)}${pad(x.drag, 6)}${x.secs}`);
+console.log(`${pad('page', 5)}${pad('viewport', 10)}${pad('violations', 11)}${pad('flagged', 8)}${pad('budget', 7)}${pad('states', 8)}${pad('labels', 8)}${pad('letters', 9)}${pad('arrows', 8)}${pad('liftOff', 8)}${pad('nonVac', 7)}${pad('drag', 6)}secs`);
+for (const x of rows) console.log(`${pad(x.page, 5)}${pad(x.vp, 10)}${pad(x.violations, 11)}${pad(x.flagged, 8)}${pad(x.budget, 7)}${pad(x.states, 8)}${pad(x.labels, 8)}${pad(x.letters, 9)}${pad(x.arrows, 8)}${pad(x.liftOff, 8)}${pad(x.nonVac, 7)}${pad(x.drag, 6)}${x.secs}`);
 if (fit.length) {
   console.log(`\n${pad('page', 5)}${pad('viewport', 10)}${pad('frame % combined', 18)}${pad('frame % exploded', 18)}load arrow px at textbook load`);
   for (const f of fit) console.log(`${pad(f.page, 5)}${pad(f.vp, 10)}${pad((100 * f.combined).toFixed(1), 18)}${pad((100 * f.exploded).toFixed(1), 18)}${f.arrowPx.toFixed(1)}`);

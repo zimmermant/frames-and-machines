@@ -2,6 +2,54 @@
 
 Newest entry first.
 
+## 2026-11-11 (evening) — first publish to GitHub Pages
+
+**Summary**
+- Todd: "publish to github".
+- Created the public repo `zimmermant/frames-and-machines` (MIT) and published to Pages from `main` at `/`.
+- Live: <https://zimmermant.github.io/frames-and-machines/>. The root `index.html` redirects to `dist/index.html`.
+- The public history starts clean at bf9413d, built from an export of source `main` at 309f586 with `docs/` dropped.
+
+**Checks**
+- **Export:** 57 files. A grep for local paths, keys, emails and CLAUDE.md found only the `.gitignore` rules and relative paths. No `docs/`, `.superpowers/` or `.claude/` files are tracked.
+- **Clone:** 131 tests pass, and a rebuilt `dist/` is byte-identical to source.
+- **Live site:** all seven pages are byte-identical to the local build, and the root returns 200.
+- **Live smoke test** (headless Edge at 1280×720, frame 6): the title is "Frame 6 — frames and machines", Explode works, and pair colours and labels render.
+- **Not tried:** Firefox, Safari, a real phone, a Canvas iframe.
+
+**Decisions (lead)**
+- Repo name `frames-and-machines`, following the `zimmermant/<kebab-name>` convention.
+- `LICENSE`, the root redirect and the README live address were committed to the source repo first, so later republishes keep them.
+
+**Open / next**
+- Todd's look-list (unchanged; see the entry below).
+- Republish only by the guarded update method: clone, rsync, deletion guard, add a commit, never rewrite.
+
+## 2026-11-12 — URL loads, 1× cap with longer arrows, less whitespace, point letters
+
+**Summary**
+- Todd embeds the pages on lecture slides and asked for four things: loads set from the URL, less whitespace round the frame, more noticeable arrows, and point letters. Spec: "Amendment 2026-11-12" in `docs/superpowers/specs/2026-11-10-frames-and-machines-design.md`; plan: `docs/superpowers/plans/2026-11-12-url-arrows-letters.md` (both local only). Branch `sim/url-arrows-letters` from `main`.
+- **URL loads** (Task 1, Codex, 1ac9b73): `?P=<fraction>,<degrees>` per load (frame 1 also `Q`), fraction of the textbook load 0–1, degrees counterclockwise from +x; `view=exploded` opens exploded with no animation. Missing or unreadable → textbook value; values go through the drag's own snapping. README has a table with one example link per frame.
+- **1× cap, longer arrows, less whitespace** (Task 2, Sonnet, 2ab7001): `LOAD_CAP` 1.5 → 1 and each figure's arrow scale re-chosen by `chooseArrowScale` (arrows ≈1.5× longer in the same box; fig 2 1.75× after its `arrowMargin` went 0.26 → 0.31). Body padding 4 px, svg outline removed, `MARGIN_PX` 34 → 30, `PAGE_RESERVE_PX` 96 → 62. Fig 6's load arrow on a phone: 9 → 16 px; at 1280: 37 → 59 px.
+- **Point letters** (Task 3, Sonnet, fef346b): every single-capital point gets a dark-grey letter; exploded, one per carrying member (copies fade in with the explode fraction). The label placer now builds candidates lazily; with letters off its output equals the old placer over 2160 states. Harness checks `letter~point` (≤ 16 px from the member outline) and `letter~overlap`, each with a plant.
+- 155 tests pass; mutation dry run 52 rows clean; harness 18 rows, 0 violations, every plant caught. Pages ≈ 67 KB, builds byte-reproducible (dist 0ac360e).
+
+**Decisions**
+- **Todd:** the frame stays static (no viewBox change on drag or explode); it is fine to lower the largest load to make room. Loads in the URL are fractions of the textbook load. A split pin shows its letter beside each half. "Same box": 1.5× arrows, not 2× in a bigger box.
+- **Lead:** degrees counterclockwise from +x; names case-sensitive; `view=exploded` added for slides. Task 2's extra label-order retries were dropped: they tripled redraw time in exploded figs 1, 2, 4 and changed no placement. Fig 4 example link uses −45° because 90° lifts both balls (kept as a lift-off example in the README).
+
+**Problems**
+- Task 3's first placer rewrite was not output-identical: a capsule bounding-box pre-check grown by exactly r missed exact-tangent boxes through rounding (16 of 2160 states moved a label by a fraction of a px). Fixed by an epsilon pad; the reviewer's differential then gave 0 mismatches. The unit test added for it does not discriminate the epsilon; the differential (a scratch script) is what guards it.
+- `letter~point` at 14 px failed by 1–2 px in crowded states; the limit is 16 px measured from the member outline (bars are ≈ 20 px wide at 1280).
+
+**Open / next**
+- Merge to `main` and republish need Todd's OK.
+- Loads at 0.5× are not in the harness sweep (never were); at 0.5× a label on figs 1 and 2 sits ≈ 1 px past the owner limit.
+- Remaining whitespace: at 1280×720 the frame is height-limited (blank sides; an iframe shaped to the frame removes it), and the combined view keeps the room the exploded pieces need.
+- Fig 4 combined: letters C and D sit above their bars, opposite their balls.
+- Mutation audit: 4 rows uncaught — "slider valuemax no longer matches the load cap" is now equivalent (100·LOAD_CAP with the cap at 1); "horizontal applied load moment sign" and "horizontal loads right-hand side" were already too blunt at HEAD; "lift-off requires equality" not checked at HEAD.
+- Still on Todd's earlier look-list: ball C's arrows short; roller F's floor piece drops on lift-off; a finger on the figure cannot scroll the page.
+
 ## 2026-11-11 (later) — magenta pair colour; merged to main
 
 **Summary**

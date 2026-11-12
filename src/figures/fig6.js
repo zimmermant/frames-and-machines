@@ -21,6 +21,6 @@ export const FIG6 = {
   balls: [],
   // arrowMargin 0.15: at the shared 0.2 the long B arrows cross the neighbouring member (arrow~member). Exploded: ABE slides
   // left 1.1 and ACF right 1.4, so the pin pairs at B and C separate.
-  view: { arrowMargin:0.15, arrowPerForce:0.013,
+  view: { arrowMargin:0.15, arrowPerForce:0.0195,
     explode:{ ABE:{dx:-1.1,dy:0}, ACF:{dx:1.4,dy:0}, BCD:{dx:0,dy:0} } }
 };

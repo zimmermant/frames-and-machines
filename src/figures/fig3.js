@@ -18,6 +18,6 @@ export const FIG3 = {
   // arrowPerForce: as for figure 1. Exploded: the arc slides left and the link right, clear of each other's pin arrows.
   // The viewBox and the px-per-unit scale are not stored: computeLayout() (layout.js) derives them from the figure's
   // bounds plus the worst-case arrow envelope and the window's size.
-  view: { arrowPerForce:0.00102,
+  view: { arrowPerForce:0.00153,
     explode:{ ABC:{dx:-1.5,dy:0}, BD:{dx:1.5,dy:0} } }
 };

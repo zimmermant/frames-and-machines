@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { render, memberOffset, loadHandlePos, HANDLE_PX, RING_PX } from '../src/scene.js';
+import { render, memberOffset, loadHandlePos, HANDLE_PX, RING_PX, pointCarriers, pointAnchor } from '../src/scene.js';
 import { toSvg, fromSvg } from '../src/svg.js';
 import { createLabelPlacer, capsuleHitsBox } from '../src/layout.js';
 import { solve, displayForces, twoForceMembers } from '../src/solve.js';
@@ -78,8 +78,8 @@ test('figure four D label stays near its arrow and clear of its ball at all view
   try {
     for (const [width,height] of [[375,812],[800,750],[1280,720]]) {
       globalThis.innerHeight=height;
-      const svg=draw(fig); svg.clientWidth=width-32;
-      for (const frac of [0,1]) for (const magnitude of [0,1,1.5]) for (let degrees=0;degrees<360;degrees+=5) {
+      const svg=draw(fig); svg.clientWidth=width-8;
+      for (const frac of [0,1]) for (const magnitude of [0,0.5,1]) for (let degrees=0;degrees<360;degrees+=5) {
         const angle=degrees*Math.PI/180, loads={P:{x:120*magnitude*Math.cos(angle),y:120*magnitude*Math.sin(angle)}};
         render(svg,fig,{loads,held:null},solve(fig,loads),frac);
         const group=byClass(svg,'reaction-force').find(g=>attr(g,'data-name')==='D'), t=forceLabel(svg,group);
@@ -372,16 +372,16 @@ test('every handle hit circle is at least 44 px across at every explode state, o
   assert.ok(figures.length===6 && figures.slice(3).every(f=>f.id>=4));
 });
 
-test('load handle slider exposes valuenow as a whole percent of nominal, 0 to 150', () => {
+test('load handle slider exposes valuenow as a whole percent of nominal, 0 to 100', () => {
   const fig=figures[0], nom=nominal(fig);
   const handle=svg=>nodes(svg,n=>attr(n,'role')==='slider')[0];
   const mag=v=>Math.hypot(v.x,v.y);
   const at=factor=>handle(draw(fig,Object.fromEntries(Object.entries(nom).map(([k,v])=>[k,{x:v.x*factor,y:v.y*factor}]))));
-  for (const [factor,want] of [[1,'100'],[0,'0'],[1.5,'150'],[0.5,'50'],[0.333,'33']]) {
+  for (const [factor,want] of [[1,'100'],[0,'0'],[0.5,'50'],[0.333,'33']]) {
     const h=at(factor);
     assert.equal(attr(h,'aria-valuenow'),want,`factor ${factor}`);
     assert.equal(attr(h,'aria-valuemin'),'0');
-    assert.equal(attr(h,'aria-valuemax'),'150');
+    assert.equal(attr(h,'aria-valuemax'),'100');
     assert.doesNotMatch(attr(h,'aria-valuetext'),/\d/);
   }
   assert.ok(mag(nom.P??Object.values(nom)[0])>0);
@@ -467,4 +467,155 @@ test('third-law pairs share a hue unique to the pair, distinct from the load and
   // lift-off grey still overrides the pair colours
   const lifted=draw(figures[3],{P:{x:0,y:120}},1);
   for (const g of [...byClass(lifted,'pin-force'),...byClass(lifted,'reaction-force')]) assert.equal(forceColour(g),PALETTE.greyed);
+});
+
+// ---- point letters: every single capital-letter key of fig.points ---------------------------------------------------
+const letterGroups=svg=>byClass(svg,'point-label');
+const letterCount=(svg)=>{
+  const counts={};
+  for (const g of letterGroups(svg)) { const p=attr(g,'data-point'); counts[p]=(counts[p]||0)+1; }
+  return counts;
+};
+const tally=(names)=>Object.fromEntries(Object.entries(names).sort());
+
+test('fig 4 combined shows A to E once each: no J, no upperBend, no lowerBend', () => {
+  const svg=draw(figures[3],nominal(figures[3]),0);
+  assert.deepEqual(tally(letterCount(svg)),{A:1,B:1,C:1,D:1,E:1});
+  for (const g of letterGroups(svg)) assert.equal(byTag(g,'text')[0].textContent,attr(g,'data-point'));
+});
+
+test('fig 6 exploded: a split pin carries a letter on each member, one-member points one letter', () => {
+  const svg=draw(figures[5],nominal(figures[5]),1);
+  assert.deepEqual(tally(letterCount(svg)),{A:2,B:2,C:2,D:1,E:1,F:1});
+  const members=p=>letterGroups(svg).filter(g=>attr(g,'data-point')===p).map(g=>attr(g,'data-member')).sort();
+  assert.deepEqual(members('B'),['ABE','BCD']);
+  assert.deepEqual(members('C'),['ACF','BCD']);
+  assert.deepEqual(members('A'),['ABE','ACF']);
+  assert.deepEqual(members('D'),['BCD']);   // the load's member
+  assert.deepEqual(members('F'),['ACF']);   // the roller's member
+  assert.deepEqual(members('E'),['ABE']);
+  // combined: one letter per point
+  assert.deepEqual(tally(letterCount(draw(figures[5],nominal(figures[5]),0))),{A:1,B:1,C:1,D:1,E:1,F:1});
+});
+
+test('every figure: one letter per point combined, one per carrying member exploded, text is the point name', () => {
+  for (const fig of figures) {
+    const names=Object.keys(fig.points).filter(k=>/^[A-Z]$/.test(k)).sort();
+    assert.deepEqual(Object.keys(letterCount(draw(fig,nominal(fig),0))).sort(),names,`fig ${fig.id} combined`);
+    for (const n of Object.values(letterCount(draw(fig,nominal(fig),0)))) assert.equal(n,1);
+    const exploded=draw(fig,nominal(fig),1), counts=letterCount(exploded);
+    assert.deepEqual(Object.keys(counts).sort(),names,`fig ${fig.id} exploded`);
+    for (const p of names) {
+      const carriers=new Set([
+        ...fig.joints.filter(j=>j.name===p).flatMap(j=>j.members),
+        ...fig.supports.filter(s=>s.name===p).map(s=>s.member)]);
+      if (carriers.size) assert.equal(counts[p],carriers.size,`fig ${fig.id} ${p}`);
+    }
+    for (const g of letterGroups(exploded)) assert.equal(byTag(g,'text')[0].textContent,attr(g,'data-point'));
+  }
+});
+
+test('letters are plain dark grey, not bold, the size of force labels, and never a force colour', () => {
+  const forceColours=new Set([PALETTE.load,PALETTE.reaction,PALETTE.greyed,...PAIR_COLOURS]);
+  let n=0;
+  for (const fig of figures) for (const frac of [0,1]) {
+    const svg=draw(fig,nominal(fig),frac);
+    const size=+attr(byTag(byClass(svg,'force-label')[0],'text')[0],'font-size');
+    for (const g of letterGroups(svg)) {
+      const t=byTag(g,'text')[0];
+      assert.equal(attr(t,'fill'),'#374151');
+      assert.ok(!forceColours.has(attr(t,'fill')));
+      assert.ok(!attr(t,'font-weight') && !attr(t,'font-style'),'plain: not bold, not italic');
+      assert.ok(Math.abs(+attr(t,'font-size')-size)<1e-9,'same size as a force label');
+      n++;
+    }
+  }
+  assert.ok(n>60);
+});
+
+test('letters: the first copy of a point is solid, later copies fade in with the explode fraction', () => {
+  for (const frac of [0.25,0.6,1]) {
+    const svg=draw(figures[5],nominal(figures[5]),frac), seen=new Set();
+    for (const g of letterGroups(svg)) {
+      const p=attr(g,'data-point'), first=!seen.has(p); seen.add(p);
+      assert.equal(+attr(g,'opacity'),first ? 1 : frac,`${p} on ${attr(g,'data-member')} at frac ${frac}`);
+    }
+    assert.ok(letterGroups(svg).some(g=>+attr(g,'opacity')===frac) || frac===1);
+  }
+  // fully combined, the extra copies are not drawn at all
+  assert.equal(letterGroups(draw(figures[5],nominal(figures[5]),0)).length,6);
+});
+
+test('each letter sits near its own point copy (within 16 px of its member\'s edge) and keeps its glyph box clear of obstacles', () => {
+  const near=16;   // px beyond the carrying member's outline, as tools/browser-harness.js SIM.letterNear
+  let checked=0;
+  for (const fig of figures) for (const frac of [0,1]) for (const loads of [nominal(fig),Object.fromEntries(fig.loads.map(l=>[l.name,{x:-l.nominal.y,y:l.nominal.x}]))]) {
+    const svg=draw(fig,loads,frac), px=scaleOf(svg), labels=byClass(svg,'force-label').map(g=>byTag(g,'text')[0]);
+    for (const g of letterGroups(svg)) {
+      const t=byTag(g,'text')[0], size=+attr(t,'font-size'), cx=+attr(t,'x'), baseline=+attr(t,'y');
+      const box={x:cx-0.4*size,y:baseline-0.905*size,w:0.8*size,h:1.2*size};
+      const name=attr(g,'data-point'), member=attr(g,'data-member');
+      const point=pointAnchor(fig,name,member), o=memberOffset(fig,member,frac), anchor={x:point.x+o.dx,y:-(point.y+o.dy)};
+      const dx=Math.max(box.x-anchor.x,0,anchor.x-box.x-box.w), dy=Math.max(box.y-anchor.y,0,anchor.y-box.y-box.h);
+      const bar=fig.members.find(m=>m.id===member).width/2*px;
+      assert.ok(Math.hypot(dx,dy)*px-bar<=near,`fig ${fig.id} ${name} frac ${frac}: ${(Math.hypot(dx,dy)*px-bar).toFixed(1)} px from its point`);
+      // clear of every other label's text box (a force label is centred on x, baseline y; sizes as the placer reserves them)
+      for (const other of labels) {
+        const w=0.8*size, ox=+attr(other,'x'), oy=+attr(other,'y');
+        const lb={x:ox-w/2,y:oy-0.905*size,w,h:1.2*size};
+        assert.ok(!(box.x<lb.x+lb.w && box.x+box.w>lb.x && box.y<lb.y+lb.h && box.y+box.h>lb.y),`fig ${fig.id} letter ${name} covers a force label`);
+      }
+      checked++;
+    }
+  }
+  assert.ok(checked>80);
+});
+
+test('pointCarriers and pointAnchor: joints, supports, loads (by name or position), contacts; a ball letter sits where the ball touches', () => {
+  assert.deepEqual(pointCarriers(figures[5],'D'),['BCD']);          // load at D
+  assert.deepEqual(pointCarriers(figures[3],'E'),['upper']);         // fig 4 load located at E, no name
+  assert.deepEqual(pointCarriers(figures[2],'A'),['ABC']);           // fig 3 load 'at' A by name
+  assert.deepEqual(pointCarriers(figures[3],'C'),['upper','lower']); // contact joint
+  assert.deepEqual(pointCarriers(figures[1],'E'),['BE','EDC']);      // the joint's members, then the support's member, de-duplicated
+  assert.deepEqual(pointCarriers({points:{Z:{x:9,y:9}},joints:[],supports:[],loads:[],members:[]},'Z'),[]);
+  assert.deepEqual(pointCarriers({points:{Z:{x:9,y:9}},joints:[],supports:[],loads:[],members:[{id:'m',path:[{seg:'line',from:'Y',to:'Z'}]}]},'Z'),['m']);
+  assert.deepEqual(pointAnchor(figures[3],'C','upper'),{x:8,y:-0.2});
+  assert.deepEqual(pointAnchor(figures[3],'C','lower'),{x:8,y:-1.8});
+  assert.deepEqual(pointAnchor(figures[3],'D','lower'),{x:10,y:-2.2});
+  assert.deepEqual(pointAnchor(figures[1],'E','EDC'),{x:0,y:0});   // a roller is lettered at the point itself, not at drawAt
+});
+
+test('createLabelPlacer exact mode: the nearest clear box by true distance, and the lazy ring search matches the old order', () => {
+  const bounds={x:0,y:0,w:200,h:200}, obstacles=[{a:{x:100,y:100},b:{x:100,y:100},r:5.8},{a:{x:60,y:100},b:{x:140,y:100},r:8}];
+  const place=createLabelPlacer(bounds,obstacles);
+  const box=place({x:100,y:100},{x:0,y:-1},14,20,6,null,undefined,{exact:true,bias:3,rings:20});
+  // the bar (r 8) is 8 px each side of y = 100: the nearest clear box is just above it
+  assert.ok(box.y+box.h<=92+1e-9 && box.y+box.h>90,`box bottom ${box.y+box.h}`);
+  assert.ok(box.cost<=12,box.cost);
+  // exact mode is never farther from the point than the ring order's choice
+  const ring=createLabelPlacer(bounds,obstacles)({x:100,y:100},{x:0,y:-1},14,20,6);
+  const dist=b=>Math.hypot(Math.max(b.x-100,0,100-b.x-b.w),Math.max(b.y-100,0,100-b.y-b.h));
+  assert.ok(dist(box)<=dist(ring)+1e-9);
+  // with no room at all it falls back (cost Infinity) rather than throwing
+  const jam=createLabelPlacer({x:0,y:0,w:10,h:10},[{box:{x:0,y:0,w:10,h:10}}])({x:5,y:5},{x:0,y:-1},4,4,1,null,undefined,{exact:true,bias:3,rings:3});
+  assert.equal(jam.cost,Infinity);
+});
+
+test('createLabelPlacer: every box it places is clear by capsuleHitsBox, including boxes exactly r from a capsule (the pre-check must not hide a tangent hit)', () => {
+  let seed=7; const rnd=()=>(seed=(seed*1664525+1013904223)>>>0)/2**32;
+  let placed=0;
+  for (let trial=0; trial<300; trial++) {
+    const obstacles=Array.from({length:4+Math.floor(rnd()*6)},()=>{
+      const a={x:rnd()*100,y:rnd()*100}, b=rnd()<0.4 ? a : {x:a.x+(rnd()-0.5)*50,y:a.y+(rnd()-0.5)*50};
+      return {a,b,r:2+Math.floor(rnd()*4)};   // whole-number radii and gaps make exactly-tangent candidates common
+    });
+    const place=createLabelPlacer({x:0,y:0,w:100,h:100},obstacles);
+    for (let k=0; k<4; k++) {
+      const box=place({x:rnd()*100,y:rnd()*100},{x:rnd()-0.5,y:rnd()-0.5},8,8,2+Math.floor(rnd()*4),null);
+      if (!Number.isFinite(box.cost)) continue;
+      for (const o of obstacles) assert.equal(capsuleHitsBox(o,box),false,`trial ${trial}`);
+      placed++;
+    }
+  }
+  assert.ok(placed>800);
 });

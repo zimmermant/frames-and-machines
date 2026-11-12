@@ -4,7 +4,8 @@ export const NS = 'http://www.w3.org/2000/svg';
 export const PALETTE = {
   load:'#e11d48', reaction:'#1d4ed8',
   member:'#cfe3ee', outline:'#3b82a6', pin:'#9ca3af', pinOutline:'#374151',
-  ground:'#d6cbb3', greyed:'#94a3b8', ink:'#111111', focus:'#1e3a8a'
+  ground:'#d6cbb3', greyed:'#94a3b8', ink:'#111111', focus:'#1e3a8a',
+  letter:'#374151'   // point letters (A, B, ...): dark grey, never a force colour
 };
 
 // One hue per third-law pair (a joint): both halves of the pair share it. Each is at least 3:1 on white and none is the

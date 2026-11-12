@@ -64,13 +64,13 @@ test('each figure stores the arrow scale the rule gives (largest scale whose wor
 });
 
 test('the frame fills at least 60 % of the svg exploded (and the textbook-load arrow is at least 24 px) at 1280x720 and 800x750', () => {
-  // The svg is 1248 px wide at a 1280 px window (16 px page padding each side); its available height is the window minus the
-  // page reserve; 800 wide gives a 768 px column in the harness. These are the sizes the browser harness measures.
-  for (const fig of figures) for (const [w,h] of [[1248,720-96],[768,750-96]]) {
+  // The svg is 1272 px wide at a 1280 px window (4 px page padding each side); its available height is the window minus the
+  // page reserve; 800 wide gives a 792 px column in the harness. These are the sizes the browser harness measures.
+  for (const fig of figures) for (const [w,h] of [[1272,720-62],[792,750-62]]) {
     const L=computeLayout(fig,w,h), F=frameBounds(fig,1);
     const span=Math.max((F.x1-F.x0)*L.scale/L.width,(F.y1-F.y0)*L.scale/L.height);
     assert.ok(span>=0.6,`${fig.id} at ${w}x${h}: frame spans ${(100*span).toFixed(1)} %`);
-    if (w===1248) {
+    if (w===1272) {
       const nominal=Math.hypot(fig.loads[0].nominal.x,fig.loads[0].nominal.y);
       assert.ok(nominal*fig.view.arrowPerForce*L.scale>=24,`${fig.id}: load arrow ${nominal*fig.view.arrowPerForce*L.scale} px`);
     }

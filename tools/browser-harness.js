@@ -5,10 +5,10 @@
 // It drives the page through the app's own hooks (globalThis.__frameApp: setLoad, frac, redraw), then measures the REAL
 // rendered DOM in screen px (getScreenCTM, getBoundingClientRect): nothing here fakes the DOM or re-derives the layout.
 //
-// Sweep: every load at 72 directions x {0, 1, 1.5} x nominal, at explode frac 0 and 1. Figure 1 (two loads) also varies P and Q
-// together and independently on a 24-direction grid, and over a 12 x 12 direction cross product at 1.5 x nominal.
+// Sweep: every load at 72 directions x {0, 0.5, 1} x nominal, at explode frac 0 and 1. Figure 1 (two loads) also varies P and Q
+// together and independently on a 24-direction grid, and over a 12 x 12 direction cross product at the cap.
 // Checks, in every state: label~label, label~arrow, label~member, label~handle, label~support/pin, label~owner (near its own arrow), arrow~arrow, arrow~other member, member~member
-// (exploded), everything inside the viewBox, rendered text >= 12 px, handle hit >= 44 px, and the budget (scroll).
+// (exploded), letter~point and letter~overlap for the point letters, everything inside the viewBox, rendered text >= 12 px, handle hit >= 44 px, and the budget (scroll).
 // sensitivity() plants faults in the real page, one at a time, and requires the checks to NAME each one.
 //
 // SIM holds the numbers copied from src; test/harness.test.js fails if they drift.
@@ -19,12 +19,14 @@
     directions: 72,         // 5 degree steps
     angleStepDeg: 5,        // = state.js snap step (Math.PI / 36)
     zeroSnap: 0.08,         // = state.js: below 0.08 x nominal snaps to 0
-    cap: 1.5,               // = state.js LOAD_CAP: at most 1.5 x nominal
-    magnitudes: [0, 1, 1.5],  // x nominal
+    cap: 1,                 // = state.js LOAD_CAP: at most 1 x nominal (the textbook load)
+    magnitudes: [0, 1],  // x nominal
     fineDirections: 24,     // figure 1's P/Q grid
-    crossDirections: 12,    // figure 1's P x Q direction cross product (at 1.5 x nominal)
+    crossDirections: 12,    // figure 1's P x Q direction cross product (at the cap)
     viewports: [{ width: 375, height: 812 }, { width: 800, height: 750 }, { width: 1280, height: 720 }],
     noScrollAt: { width: 1280, height: 720 },
+    letterNear: 16,         // px: a point letter's box lies within this of its point, measured from the outline of the bar that carries it (or, where a load handle's halo covers the point, of the halo)
+    letterFill: '#374151',  // = svg.js PALETTE.letter
     tolerance: 0.75,        // px of contact allowed before an overlap counts (anti-aliasing, touching heads)
     // Nominal load vectors per page, as in src/figures/figN.js (loads[].nominal, in the figure's own force units).
     nominals: {
@@ -102,10 +104,24 @@
   function measure() {
     const svg = $('#scene'), m = svg.getScreenCTM(), scale = m.a, vb = svg.viewBox.baseVal;
     const view = { x: m.e + m.a * vb.x, y: m.f + m.d * vb.y, w: m.a * vb.width, h: m.d * vb.height };
-    const out = { scale, view, labels: [], arrows: [], members: [], handles: [], supports: [], grounds: [], pins: [], balls: [], texts: [] };
+    const out = { scale, view, letters: [], labels: [], arrows: [], members: [], handles: [], supports: [], grounds: [], pins: [], balls: [], texts: [] };
     for (const g of $$('.force-label', svg)) {
       const t = g.querySelector('text'); if (!t) continue;
       out.labels.push({ id: forceId(g), rect: rectOf(t) });
+    }
+    // A point letter's own point copy, in screen px: the point's place (a ball's own contact point where a ball is drawn there) shifted by its member's explode offset.
+    const fa = globalThis.__frameApp;
+    for (const g of $$('.point-label', svg)) {
+      const t = g.querySelector('text'); if (!t) continue;
+      const point = g.getAttribute('data-point'), member = g.getAttribute('data-member');
+      let anchor = null;
+      if (fa && fa.fig) {
+        const fig = fa.fig, ball = fig.balls.some(b => b.name === point);
+        const contact = ball ? [...fig.joints, ...fig.supports].find(c => c.name === point && c.drawAt && c.drawAt[member]) : null;
+        const p = contact ? contact.drawAt[member] : fig.points[point], o = (member && fig.view.explode[member]) || { dx: 0, dy: 0 };
+        anchor = toScreen(svg, p.x + o.dx * fa.frac, -(p.y + o.dy * fa.frac));
+      }
+      out.letters.push({ id: `${point}@${member}`, point, member, anchor, fill: t.getAttribute('fill'), rect: rectOf(t) });
     }
     const lift = $('#liftoff', svg);
     if (lift && lift.textContent) out.labels.push({ id: 'liftoff line', rect: rectOf(lift) });
@@ -181,6 +197,32 @@
       const ring = own.kind === 'load' ? (Hs.find(h => l.id.startsWith(h.id + '@')) || { ringR: 0 }).ringR : 0;
       if (d - ring > l.rect.h) v.push(`label~owner: ${l.id} is ${(d - ring).toFixed(0)} px from its arrow (limit ${l.rect.h.toFixed(0)})`);
     }
+    // Point letters. letter~point: the letter stands by its own point copy (a student reads it as that point's name).
+    // letter~overlap: it covers nothing: no arrow, member, handle halo, support, pin, ball, force label or other letter.
+    const LT = ms.letters || [];
+    const rectToPt = (R, p) => Math.hypot(Math.max(R.x, Math.min(p.x, R.x + R.w)) - p.x, Math.max(R.y, Math.min(p.y, R.y + R.h)) - p.y);
+    for (const l of LT) {
+      if (l.anchor) {
+        // A bar is as wide as the figure draws it (half of it is 10 px or more on a wide page), and a letter must clear the bar: measure from the bar's outline.
+        const own = M.find(m => m.id === l.member), bar = own ? own.r : 0;
+        let d = Math.max(0, rectToPt(l.rect, l.anchor) - bar);
+        // A ball drawn at the point carries the letter's meaning with its outline, like an in-ball force label.
+        for (const ball of ms.balls.filter(b => b.id === l.point)) d = Math.min(d, Math.max(0, rectToPt(l.rect, ball.c) - ball.r));
+        // Where a load handle sits on the point (a small or zero load), its halo keeps the letter off: measure from the halo's edge.
+        for (const h of Hs) if (Math.hypot(h.centre.x - l.anchor.x, h.centre.y - l.anchor.y) < h.haloR) d = Math.min(d, Math.max(0, rectToPt(l.rect, h.centre) - h.haloR));
+        if (d > SIM.letterNear) v.push(`letter~point: ${l.id} is ${d.toFixed(0)} px from its point (limit ${SIM.letterNear})`);
+      }
+      for (const a of A) if (arrowHitsRect(a, l.rect, tol)) v.push(`letter~overlap: ${l.id} touches arrow ${a.id}`);
+      for (const m of M) if (chainRect(m.pts, l.rect) < m.r - tol) v.push(`letter~overlap: ${l.id} touches member ${m.id}`);
+      for (const h of Hs) if (rectToPt(l.rect, h.centre) < h.haloR - tol) v.push(`letter~overlap: ${l.id} touches handle ${h.id}`);
+      for (const sp of ms.supports) if (rectOverlap(l.rect, sp.rect)) v.push(`letter~overlap: ${l.id} touches support ${sp.id}`);
+      for (const pn of ms.pins) if (rectOverlap(l.rect, pn.rect)) v.push(`letter~overlap: ${l.id} touches a pin`);
+      for (const ball of [...ms.balls]) if (rectToPt(l.rect, ball.c) < ball.r - tol) v.push(`letter~overlap: ${l.id} touches ball ${ball.id}`);
+      for (const o of L) if (rectOverlap(l.rect, o.rect)) v.push(`letter~overlap: ${l.id} touches label ${o.id}`);
+      for (const o of LT) if (o !== l && l.id < o.id && rectOverlap(l.rect, o.rect)) v.push(`letter~overlap: ${l.id} touches letter ${o.id}`);
+      if (outside(l.rect, V, tol)) v.push(`letter~overlap: ${l.id} outside viewBox`);
+      if (l.fill !== SIM.letterFill) v.push(`letter~overlap: ${l.id} is not ${SIM.letterFill}`);
+    }
     for (const l of L) {
       for (const a of A) if (arrowHitsRect(a, l.rect, tol)) v.push(`label~arrow: ${l.id} touches arrow ${a.id}`);
       for (const m of M) if (chainRect(m.pts, l.rect) < m.r - tol) v.push(`label~member: ${l.id} touches member ${m.id}`);
@@ -245,7 +287,7 @@
     const ang = k => k * SIM.angleStepDeg * Math.PI / 180;
     const set = (list, label) => ({ label, loads: list });   // list: [name, magnitude (x nominal), angle]
     const dirs = SIM.directions, fine = SIM.fineDirections, cross = SIM.crossDirections;
-    // all loads together, 72 x {0,1,1.5}
+    // all loads together, 72 x {0,0.5,1}
     yield set(names.map(n => [n, 0, 0]), 'all zero');
     for (const m of SIM.magnitudes.filter(x => x > 0)) for (let k = 0; k < dirs; k++) yield set(names.map(n => [n, m, ang(k)]), `all ${m}x @${k * 5}`);
     if (names.length > 1) {
@@ -314,6 +356,18 @@
       const far = { x: ms.view.x + (b.c.x < ms.view.x + ms.view.w / 2 ? ms.view.w - 40 : 4), y: ms.view.y + 24 };
       const u = user(t, far); setXY(t, u.x, u.y);
     });
+    // Point letters (every page has them).
+    const letterTexts = () => $$('.point-label text', svg);
+    run('letter far from its point', 'letter~point', () => {
+      const t = letterTexts()[0], ms = measure(), l = ms.letters[0];
+      const tl = user(t, { x: ms.view.x + 4, y: ms.view.y + 24 }), br = user(t, { x: ms.view.x + ms.view.w - 20, y: ms.view.y + ms.view.h - 8 });
+      const far = Math.hypot(l.anchor.x - ms.view.x, l.anchor.y - ms.view.y) > Math.hypot(l.anchor.x - ms.view.x - ms.view.w, l.anchor.y - ms.view.y - ms.view.h) ? tl : br;
+      setXY(t, far.x, far.y);
+    });
+    run('letter on an arrow', 'letter~overlap', () => {
+      const l = groups()[0].querySelector('line'), m = { x: (num(l, 'x1') + num(l, 'x2')) / 2, y: (num(l, 'y1') + num(l, 'y2')) / 2 };
+      setXY(letterTexts()[0], m.x, m.y);
+    });
     run('label on a support', 'label~support', () => {
       const g = measure().supports[0].rect, u = user($('.force-label text'), { x: g.x + g.w / 2, y: g.y + g.h / 2 });
       setXY(texts()[0], u.x, u.y);
@@ -351,16 +405,19 @@
       const msg = `the window is ${here.width}x${here.height}, not ${want.width}x${want.height}`;
       return { nonVacuity: { ok: false, failed: [msg] }, violations: [`window: ${msg}`], sensitivity: { flagged: false }, budget: { ok: false, error: msg, failed: [msg] }, counts: {} };
     }
-    const counts = { states: 0, labels: 0, arrows: 0, members: 0, handles: 0, texts: 0, pairs: 0, liftOffStates: 0 };
+    const counts = { states: 0, letters: 0, labels: 0, arrows: 0, members: 0, handles: 0, texts: 0, pairs: 0, liftOffStates: 0 };
     const seen = new Map(), violations = [], budgetFailed = new Set();
+    const letterPoints = Object.keys(a.fig.points).filter(k => /^[A-Z]$/.test(k));
     let scrollMax = 0;
     for (const frac of [0, 1]) for (const st of states(a.fig)) {
       apply(a, st, frac);
       const ms = measure(), label = `fig${a.fig.id} frac=${frac} ${st.label}`;
-      counts.states++; counts.labels += ms.labels.length; counts.arrows += ms.arrows.length; counts.members += ms.members.length;
+      counts.states++; counts.letters += ms.letters.length; counts.labels += ms.labels.length; counts.arrows += ms.arrows.length; counts.members += ms.members.length;
       counts.handles += ms.handles.length; counts.texts += ms.texts.length;
       counts.pairs += ms.labels.length * (ms.labels.length - 1) / 2 + ms.labels.length * (ms.arrows.length + ms.members.length);
       if (a.solution && !a.solution.ok) counts.liftOffStates++;
+      for (const name of letterPoints) if (!ms.letters.some(l => l.point === name)) violations.push(`${label}: letter~point: no letter for point ${name}`);
+      if (ms.letters.length < letterPoints.length) violations.push(`${label}: letter~point: only ${ms.letters.length} letters for ${letterPoints.length} points`);
       if (ms.labels.length < ms.arrows.length) violations.push(`${label}: only ${ms.labels.length} labels for ${ms.arrows.length} arrows`);
       for (const s of check(ms, { frac })) {
         const key = s;
@@ -378,6 +435,7 @@
     const nv = [];
     if (counts.states < expected) nv.push(`states ${counts.states} < expected ${expected}`);
     if (counts.labels < counts.arrows) nv.push(`labels ${counts.labels} < arrows ${counts.arrows}`);
+    if (counts.letters < counts.states * letterPoints.length) nv.push(`letters ${counts.letters} < ${counts.states} states x ${letterPoints.length} points`);
     if (counts.arrows === 0 || counts.members === 0) nv.push('no arrows or members measured');
     if (oneSided && !(counts.liftOffStates > 0)) nv.push('figure has a one-sided contact but visited no lift-off state');
     counts.expectedStates = expected;

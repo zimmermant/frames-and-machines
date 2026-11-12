@@ -21,7 +21,7 @@ export const FIG2 = {
   // arrowPerForce: as for figure 1. Exploded: ABC rises, EDC drops, BE stays between them.
   // The viewBox and the px-per-unit scale are not stored: computeLayout() (layout.js) derives them from the figure's
   // bounds plus the worst-case arrow envelope and the window's size.
-  // arrowMargin 0.26: the shared 0.2 left one label 1 px too far from its arrow at 375x812; set by the harness sweep.
-  view: { arrowMargin:0.26, arrowPerForce:0.0437,
+  // arrowMargin 0.31 (was 0.26 at the 1.5x cap): at the 1x cap and MARGIN_PX 30 every smaller value leaves a label 1 px too far from its arrow at 375x812; set by the harness sweep.
+  view: { arrowMargin:0.31, arrowPerForce:0.0765,
     explode:{ ABC:{dx:0,dy:3.6}, BE:{dx:0,dy:0}, EDC:{dx:0,dy:-3} } }
 };

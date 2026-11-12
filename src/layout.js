@@ -7,9 +7,9 @@ import { LOAD_CAP } from './state.js';
 // chooses the scale (px per unit) so that box, plus a margin in px for labels, fills the width and the height the
 // window leaves. Text, arrowheads, stroke widths, handles and clearances are then drawn in px (divided by the
 // scale), so only the geometry and the arrows (length proportional to force) grow with the window.
-export const MARGIN_PX=34;      // room round the content for labels beside the outermost arrows
+export const MARGIN_PX=30;      // room round the content for labels beside the outermost arrows. Smallest value that keeps the harness (6 pages x 375/800/1280) and the D-label test at 0 violations at the 1x cap; the first value that failed was 28 (fig 1 label~owner at 1280x720, fig 2 at 375x812, and the figure-4 D-label test at 1280x720; fig 2 was re-tuned via arrowMargin at 30 only).
 export const STRIP_PX=28;       // extra room at the bottom for the lift-off line (figures with a one-sided contact)
-export const PAGE_RESERVE_PX=96; // body padding, button and gap above the figure
+export const PAGE_RESERVE_PX=62; // body padding 2 x 4, button 44 + 10 margin below it
 export const DEFAULT_WIDTH_PX=340;
 export const DEFAULT_HEIGHT_PX=716;
 
@@ -155,15 +155,19 @@ export function capsuleHitsBox(c, box) {
 export function createLabelPlacer(bounds = null, obstacles = []) {
   const boxes=[];
   const overlaps=(a,b)=>a.x<b.x+b.w && a.x+a.w>b.x && a.y<b.y+b.h && a.y+a.h>b.y;
+  // A capsule can only touch a box that meets its own bounding box (grown by its radius and an epsilon, as capsuleHitsBox's tangent test is rounding-sensitive): skip the sampling otherwise.
+  const hull=obstacles.map(o=>o.box ? o.box : {x:Math.min(o.a.x,o.b.x)-o.r-1e-9,y:Math.min(o.a.y,o.b.y)-o.r-1e-9,
+    w:Math.abs(o.a.x-o.b.x)+2*o.r+2e-9,h:Math.abs(o.a.y-o.b.y)+2*o.r+2e-9});
   const clear=box=>!boxes.some(b=>overlaps(box,b)) &&
-    !obstacles.some(o=>o.box ? overlaps(box,o.box) : capsuleHitsBox(o,box));
+    !obstacles.some((o,i)=>o.box ? overlaps(box,o.box) : overlaps(box,hull[i]) && capsuleHitsBox(o,box));
   const inside=box=>!bounds || (box.x>=bounds.x && box.y>=bounds.y &&
     box.x+box.w<=bounds.x+bounds.w && box.y+box.h<=bounds.y+bounds.h);
-  return function place(tail, away, width, height, gap, head = null, shaftGap = gap) {
+  // opts.exact: rank candidates by the box's true distance from `tail` (plus opts.bias x how far the direction turns from `away`, over
+  // pi) instead of by ring, so a point letter ends up as near its point as the room allows.
+  return function place(tail, away, width, height, gap, head = null, shaftGap = gap, opts = null) {
     const len=Math.hypot(away.x,away.y);
     const u=len ? {x:away.x/len,y:away.y/len} : {x:0,y:-1};
-    const step=0.1*height, rings=20;
-    const candidates=[];
+    const step=0.1*height, rings=opts?.rings ?? 20;
     // Box whose nearest edge is `distance` from `anchor` in direction d (a unit vector).
     const around=(anchor,d,distance)=>{
       const reach=Math.abs(d.x)*width/2+Math.abs(d.y)*height/2;
@@ -172,29 +176,57 @@ export function createLabelPlacer(bounds = null, obstacles = []) {
     const angles=[0];
     for (let k=1; k<=23; k++) angles.push(k*Math.PI/24,-k*Math.PI/24);
     angles.push(Math.PI);
-    let order=0;
-    for (let ring=0; ring<rings; ring++) {
-      for (const angle of angles) {
-        const d={x:u.x*Math.cos(angle)-u.y*Math.sin(angle),y:u.x*Math.sin(angle)+u.y*Math.cos(angle)};
-        candidates.push({cost:gap+ring*step,order:order++,box:around(tail,d,gap+ring*step)});
-      }
-      if (head) {
-        const dx=head.x-tail.x, dy=head.y-tail.y, l=Math.hypot(dx,dy);
-        if (l>0.7*height) {
-          const n={x:-dy/l,y:dx/l};
-          for (const t of [0.15,0.3,0.45,0.6,0.75,0.9]) for (const side of [1,-1]) {
-            const p={x:tail.x+dx*t,y:tail.y+dy*t}, d={x:n.x*side,y:n.y*side};
-            candidates.push({cost:shaftGap+ring*step,order:order++,box:around(p,d,shaftGap+ring*step)});
-          }
+    if (opts?.exact) {
+      // A ring's boxes are at least `gap + ring*step` from the point, so once a clear box beats the next ring's bound the search is over.
+      let found=null, outside=null;
+      for (let ring=0; ring<rings && !(found && gap+ring*step>=found.cost); ring++) {
+        for (const angle of angles) {
+          const d={x:u.x*Math.cos(angle)-u.y*Math.sin(angle),y:u.x*Math.sin(angle)+u.y*Math.cos(angle)};
+          const box=around(tail,d,gap+ring*step);
+          const cost=Math.hypot(Math.max(box.x-tail.x,0,tail.x-box.x-box.w),Math.max(box.y-tail.y,0,tail.y-box.y-box.h))+
+            opts.bias*Math.abs(angle)/Math.PI;
+          if (found && cost>=found.cost) continue;
+          if (!clear(box)) continue;
+          if (inside(box)) found={cost,box}; else if (!outside || cost<outside.cost) outside={cost,box};
         }
       }
+      if (found) { boxes.push(found.box); return Object.assign(found.box,{cost:found.cost}); }
+      const fallback=outside?.box ?? {x:tail.x-width/2,y:tail.y-height/2-gap,w:width,h:height};
+      boxes.push(fallback);
+      return Object.assign(fallback,{cost:Infinity});
     }
-    candidates.sort((a,b)=>a.cost-b.cost || a.order-b.order);
-    let fallback=null;
-    for (const c of candidates) {
-      if (!clear(c.box)) continue;
-      if (inside(c.box)) { boxes.push(c.box); return Object.assign(c.box,{cost:c.cost}); }
-      fallback ||= c.box;
+    // Candidates in the order (cost, then generation order), made lazily: two streams of rings, the tail's (cost gap + ring*step)
+    // and the shaft's (cost shaftGap + ring*step), merged ring by ring. A ring's boxes share one cost, and within a ring the tail's
+    // come before the shaft's, so whole rings compare by (cost, ring of the tail <= ring of the shaft). Most calls stop in the first
+    // few rings, so the 20 x 61 boxes are not all built.
+    let shaft=null;
+    if (head) {
+      const dx=head.x-tail.x, dy=head.y-tail.y, l=Math.hypot(dx,dy);
+      if (l>0.7*height) shaft={dx,dy,n:{x:-dy/l,y:dx/l}};
+    }
+    const shaftAt=[0.15,0.3,0.45,0.6,0.75,0.9];
+    let fallback=null, rt=0, rs=shaft ? 0 : rings;
+    while (rt<rings || rs<rings) {
+      const ct=gap+rt*step, cs=shaftGap+rs*step;
+      const tailNext=rs>=rings || (rt<rings && (ct<cs || (ct===cs && rt<=rs)));
+      const tried=[];
+      if (tailNext) {
+        for (const angle of angles) {
+          const d={x:u.x*Math.cos(angle)-u.y*Math.sin(angle),y:u.x*Math.sin(angle)+u.y*Math.cos(angle)};
+          tried.push(around(tail,d,ct));
+        }
+      } else {
+        for (const t of shaftAt) for (const side of [1,-1]) {
+          tried.push(around({x:tail.x+shaft.dx*t,y:tail.y+shaft.dy*t},{x:shaft.n.x*side,y:shaft.n.y*side},cs));
+        }
+      }
+      const cost=tailNext ? ct : cs;
+      if (tailNext) rt++; else rs++;
+      for (const box of tried) {
+        if (!clear(box)) continue;
+        if (inside(box)) { boxes.push(box); return Object.assign(box,{cost}); }
+        fallback ||= box;
+      }
     }
     // Nothing fits inside the view: keep the labels apart and let the harness say so.
     if (!fallback) fallback={x:tail.x-width/2,y:tail.y-height/2-gap,w:width,h:height};

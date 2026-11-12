@@ -1,7 +1,7 @@
 * { box-sizing: border-box; }
-body { margin: 0; padding: 16px; background: #fff; color: #111; font-family: system-ui, sans-serif; }
+body { margin: 0; padding: 4px; background: #fff; color: #111; font-family: system-ui, sans-serif; }
 main { max-width: 1400px; margin: 0 auto; }
-svg { display: block; max-width: 100%; outline: 1px solid #ddd; outline-offset: -1px; border-radius: 6px; background: #fff; }
+svg { display: block; max-width: 100%; background: #fff; }
 /* The figure fills the column's width; render() sets its height (the content's, or what the window leaves). */
 #scene { width: 100%; touch-action: none; }
 #scene.is-dragging, #scene.is-dragging .handle { cursor: grabbing; }

@@ -26,8 +26,8 @@ export const SIM_ROWS = [
     'magnitude<0.08*nominal', 'magnitude<0.05*nominal'],
   ['state.js', 'a drag exactly at eight percent incorrectly snaps to zero',
     'magnitude<0.08*nominal', 'magnitude<=0.08*nominal'],
-  ['state.js', 'the load cap is twice nominal instead of one and a half',
-    'export const LOAD_CAP=1.5;', 'export const LOAD_CAP=2;'],
+  ['state.js', 'the load cap is twice nominal instead of one',
+    'export const LOAD_CAP=1;', 'export const LOAD_CAP=2;'],
   ['state.js', 'drag direction snaps to ten-degree steps',
     'const step=Math.PI/36;', 'const step=Math.PI/18;'],
   ['kbd.js', 'Left turns ten degrees instead of five',
@@ -112,5 +112,18 @@ export const SIM_ROWS = [
   ['tools/browser-harness.js', 'the harness measures an in-ball force label from its arrow only, not from the ball outline too',
     'if (ownBall) d = Math.min(', 'if (false) d = Math.min('],
   ['tools/browser-harness.js', 'the harness ignores label collisions with balls',
-    'for (const ball of ms.balls)', 'for (const ball of [])']
+    'for (const ball of ms.balls)', 'for (const ball of [])'],
+
+  // Amendment 2026-11-12: point letters, one beside each member's copy of a split point.
+  ['scene.js', 'point letters: a split pin shows its letter on only one of its members (the per-member copies are dropped)',
+    'const carriers=pointCarriers(fig,name), copies=carriers.length ? carriers : [null];',
+    'const carriers=pointCarriers(fig,name), copies=carriers.length ? [carriers[0]] : [null];'],
+  ['scene.js', 'point letters: the copies after the first are solid instead of fading in with the explode fraction',
+    "opacity:first ? 1 : frac},labels);", "opacity:1},labels);"],
+  ['scene.js', 'point letters: the extra copies are drawn even when combined',
+    'if (i>0 && frac===0) return;', ''],
+  ['tools/browser-harness.js', 'the harness no longer flags a letter that touches an arrow',
+    'for (const a of A) if (arrowHitsRect(a, l.rect, tol)) v.push(`letter~overlap', 'for (const a of []) if (arrowHitsRect(a, l.rect, tol)) v.push(`letter~overlap'],
+  ['tools/browser-harness.js', 'the harness no longer flags a letter far from its point',
+    'if (d > SIM.letterNear)', 'if (d > 1e9)']
 ];

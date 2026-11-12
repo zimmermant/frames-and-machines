@@ -20,6 +20,6 @@ export const FIG5 = {
   balls: [],
   // arrowPerForce: from the layout rule. Exploded: ABC slides left and CDEF (with roller F and its floor) right, 2.4 each,
   // leaving link BE between them with room for the pin-force pairs at B and E.
-  view: { arrowPerForce:0.0307,
+  view: { arrowPerForce:0.0461,
     explode:{ ABC:{dx:-2.4,dy:0}, CDEF:{dx:2.4,dy:0}, BE:{dx:0,dy:0} } }
 };

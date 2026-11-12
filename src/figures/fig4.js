@@ -24,6 +24,6 @@ export const FIG4 = {
   // arrowPerForce: from the layout rule (chooseArrowScale in layout.js). Exploded: the upper arm rises 2.2, so ball C (drawn half way
   // between the arms) has a gap on each side for its two contact arrows; the lower arm stays on its pin B and ball D, so the
   // floor never moves.
-  view: { arrowPerForce:0.00977,
+  view: { arrowPerForce:0.0146,
     explode:{ upper:{dx:0,dy:2.2}, lower:{dx:0,dy:0} } }
 };
